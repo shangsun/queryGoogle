@@ -7,18 +7,16 @@
 
 // 1. Text strings =====================================================================================================
 //    Modify these strings and messages to change the behavior of your Lambda function
-
-var myRequest = 'Florida';
+'use strict';
 
 // 2. Skill Code =======================================================================================================
-
 
 var Alexa = require('alexa-sdk');
 
 exports.handler = function(event, context, callback) {
     var alexa = Alexa.handler(event, context);
 
-    alexa.appId = 'amzn1.ask.skill.01abf154-15e4-4ced-b07b-8dd437f3a6a4';
+    alexa.appId = 'amzn1.ask.skill.[]';
     // alexa.dynamoDBTableName = 'YourTableName'; // creates new table for session.attributes
 
     alexa.registerHandlers(handlers);
@@ -27,74 +25,144 @@ exports.handler = function(event, context, callback) {
 
 var handlers = {
     'LaunchRequest': function () {
-        this.emit('MyIntent');
+        this.emit(':ask', 'Welcome to the open hours, You can say Issaquah Costco Or Gilman QFC', 'Or 2641 Plymouth Kroger');
     },
 
-    'MyIntent': function () {
+    'GetLocationIntent': function () {
+        var myRequest = "";
+        if (typeof this.event.request.intent.slots.City.value !== 'undefined' 
+            && this.event.request.intent.slots.City.value) {
+            myRequest += this.event.request.intent.slots.City.value + " ";
+        }
 
+        if (typeof this.event.request.intent.slots.Street.value !== 'undefined' 
+            && this.event.request.intent.slots.Street.value) {
+            myRequest += this.event.request.intent.slots.Street.value + " ";
+        }
+
+        if (typeof this.event.request.intent.slots.Business.value !== 'undefined' 
+            && this.event.request.intent.slots.Business.value) {
+            myRequest += this.event.request.intent.slots.Business.value;
+        }
+
+        myRequest = myRequest.trim();
         httpsGet(myRequest,  myResult => {
                 console.log("sent     : " + myRequest);
-                console.log("received : " + myResult);
+                console.log("callback : " + myResult);
 
-                this.emit(':tell', 'The population of ' + myRequest + ' is ' + myResult );
+                var output;
 
+                if (myResult === "") {
+                    output = "Your request open hours for " + myRequest + " returns no precise hit. Try again";
+                } else {
+                    output = "Your request open hours for " + myRequest + ' is ' + myResult;
+                }
+
+                this.emit(':tellWithCard', output, "Opening hours", output);
             }
         );
+    },
 
+    'AMAZON.SearchAction<object@LocalBusiness[openHours]>': function () {  
+        // The available Intent Handlers from LocalBusiness[openHours] include:
+        // object.location.addressLocality.name
+        // object.spatialRelation
+        // object.location.name
+        // object.openHours.closes
+        // object.type
+        // object.name
+        // object.location.streetAddress.name
+
+        var myRequest = "";
+        if (typeof this.event.request.intent.slots["object.location.addressLocality.name"] !== 'undefined') {
+            if (typeof this.event.request.intent.slots["object.location.addressLocality.name"].value !== 'undefined') {
+                myRequest += this.event.request.intent.slots["object.location.addressLocality.name"].value + " ";
+            }
+        }             
+
+        if (typeof this.event.request.intent.slots["object.location.name"] !== 'undefined') {
+            if(typeof this.event.request.intent.slots["object.location.name"].value !== 'undefined') {
+                myRequest += this.event.request.intent.slots["object.location.name"].value + " ";
+            }
+        }
+
+        if (typeof this.event.request.intent.slots["object.location.streetAddress.name"] !== 'undefined') {
+            if(typeof this.event.request.intent.slots["object.location.streetAddress.name"].value !== 'undefined') {
+                myRequest += this.event.request.intent.slots["object.location.streetAddress.name"].value + " ";
+            }
+        }
+
+        if (typeof this.event.request.intent.slots["object.type"] !== 'undefined'){
+            if(typeof this.event.request.intent.slots["object.type"].value !== 'undefined') {
+                myRequest += this.event.request.intent.slots["object.type"].value + " ";
+            }
+        }
+
+        if (typeof this.event.request.intent.slots["object.name"] !== 'undefined') { 
+            if(typeof this.event.request.intent.slots["object.name"].value !== 'undefined') {
+                myRequest += this.event.request.intent.slots["object.name"].value;
+            }
+        }
+
+        myRequest = myRequest.trim();
+        httpsGet(myRequest,  myResult => {
+                console.log("sent     : " + myRequest);
+                console.log("callback : " + myResult);
+
+                var output;
+
+                if (myResult === "") {
+                    output = "Your request open hours for " + myRequest + " returns no precise hit. Try again";
+                } else {
+                    output = "Your request open hours for " + myRequest + ' is ' + myResult;
+                }
+
+                this.emit(':tellWithCard', output, "Opening hours", output);
+            }
+        );
     }
 };
-
 
 //    END of Intent Handlers {} ========================================================================================
 // 3. Helper Function  =================================================================================================
 
+var cheerio = require('cheerio');
+var request = require('request');
+var util = require('util');
+var querystring = require('querystring');
 
-var https = require('https');
-// https is a default part of Node.JS.  Read the developer doc:  https://nodejs.org/api/https.html
-// try other APIs such as the current bitcoin price : https://btc-e.com/api/2/btc_usd/ticker  returns ticker.last
+function httpsGet(query, callback) {
+    var startIndex = 0;
+    var resultsNumber = 1;
 
-function httpsGet(myData, callback) {
+    var openHours = '#vBb,._m3b';
+    var shopName = '._eGc';
 
+    var URL = 'https://www.google.com/search?&q=%s+open+hours&start=0&num=1';
+    var newUrl = util.format(URL, querystring.escape(query.trim()));
+    
     // GET is a web service request that is fully defined by a URL string
-    // Try GET in your browser:
-    // https://cp6gckjt97.execute-api.us-east-1.amazonaws.com/prod/stateresource?usstate=New%20Jersey
+    var requestOptions = {
+        url: newUrl,
+        method: 'GET'
+      };
 
+    request(requestOptions, function (err, res, body) {
+        if ((err === null) && res.statusCode === 200) {
+            var $ = cheerio.load(body);
 
-    // Update these options with the details of the web service you would like to call
-    var options = {
-        host: 'cp6gckjt97.execute-api.us-east-1.amazonaws.com',
-        port: 443,
-        path: '/prod/stateresource?usstate=' + encodeURIComponent(myData),
-        method: 'GET',
+            var Str = $(openHours).text();
 
-        // if x509 certs are required:
-        // key: fs.readFileSync('certs/my-key.pem'),
-        // cert: fs.readFileSync('certs/my-cert.pem')
-    };
+            console.log('openhours:', Str);
+            console.log('shopName:', $(shopName).text());
 
-    var req = https.request(options, res => {
-        res.setEncoding('utf8');
-        var returnData = "";
+            console.log('statusCode:', res.statusCode);
+            console.log('headers:', res.headers);
 
-        res.on('data', chunk => {
-            returnData = returnData + chunk;
-        });
-
-        res.on('end', () => {
-            // we have now received the raw return data in the returnData variable.
-            // We can see it in the log output via:
-            // console.log(JSON.stringify(returnData))
-            // we may need to parse through it to extract the needed data
-
-            var pop = JSON.parse(returnData).population;
-
-            callback(pop);  // this will execute whatever function the caller defined, with one argument
-
-        });
-
-    });
-    req.end();
-
+            callback(Str);
+        } else {
+            console.error(err);
+        }
+  });
+   
 }
-
-

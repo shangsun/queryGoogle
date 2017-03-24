@@ -1,17 +1,24 @@
 {
   "intents": [
     {
-      "intent": "MyIntent",  "slots":[]
-    },
-
-    {
-      "intent": "AMAZON.HelpIntent"
+      "intent": "AMAZON.SearchAction<object@LocalBusiness[openHours]>"
     },
     {
-      "intent": "AMAZON.StopIntent"
-    },
-    {
-      "intent": "AMAZON.CancelIntent"
+      "intent": "GetLocationIntent",
+      "slots": [
+        {
+          "name": "City",
+          "type": "AMAZON.US_CITY"
+        },
+        {
+          "name": "Street",
+          "type": "AMAZON.StreetAddress"
+        },
+         {
+          "name": "Business",
+          "type": "AMAZON.LocalBusiness"
+        }
+      ]
     }
   ]
 }

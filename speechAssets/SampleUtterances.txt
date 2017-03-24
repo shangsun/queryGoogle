@@ -1,1 +1,3 @@
-MyIntent hello
+GetLocationIntent {City} {Business}
+GetLocationIntent {Street} {Business}
+GetLocationIntent {City} {Street} {Business}

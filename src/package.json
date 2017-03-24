@@ -15,6 +15,9 @@
   "author": "me",
   "license": "Apache-2.0",
   "dependencies": {
-    "alexa-sdk": "^1.0.7"
+    "alexa-sdk": "^1.0.7",
+    "cheerio": "^0.22.0",
+    "querystring": "^0.2.0",
+    "request": "^2.81.0"
   }
 }
